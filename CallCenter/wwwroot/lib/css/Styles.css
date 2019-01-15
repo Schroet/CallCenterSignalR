@@ -1,0 +1,55 @@
+﻿html, body {
+    height: 100&#37;
+    padding: 0;
+    margin: 0;
+}
+
+
+.header {
+    height:70px;
+    width:100%;
+    background-color:#616161;
+    margin-top: 1px;
+    position: relative;
+    padding: 0;
+    overflow: auto;
+}
+
+.header >h3{
+    margin-left:50px;
+    color:white;
+
+}
+
+#container {
+    height: 600px;
+    overflow-y: scroll;
+    width: 700px;
+    background-color: lightgray;
+    margin-top: 25px;
+   
+}
+
+.log-panel {
+    margin-left: 25px;
+    
+}
+
+    .log-panel > h3 {
+
+    }
+
+.log-panel #container {
+    border: 1px solid grey;
+}
+
+.settings-bar {
+    margin-left: 25px;
+}
+
+.buttons-line{
+    margin-top:15px
+}
+
+.monitoring-section {
+}

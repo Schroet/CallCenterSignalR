@@ -1,0 +1,133 @@
+﻿<!DOCTYPE html>
+
+<html>
+<head>
+    <link rel="stylesheet" href="~/lib/css/Styles.css" />
+    <title>Call Center Emulator</title>
+</head>
+<body>
+    <div class="header">
+        <h3>Call Center Emulator</h3>
+    </div>
+
+    <div class="monitoring-section">
+        <div class="settings-bar">
+            <div>
+                <h3>Call Center Emulation Settings</h3>
+                <table>
+                    <tr>
+                        <th></th>
+                        <th></th>
+                        <th>free employees</th>
+                    </tr>
+                    <tr>
+                        <td>Operator count</td>
+                        <td>
+                            <input type="text" value="20" id="operator-count" />
+                        </td>
+                        <td id="free-operators"></td>
+                    </tr>
+                    <tr>
+                        <td>Manager count</td>
+                        <td>
+                            <input type="text" value="10" id="manager-count" />
+                        </td>
+                        <td id="free-managers"></td>
+                    </tr>
+                    <tr>
+                        <td>Senior manger count</td>
+                        <td>
+                            <input type="text" value="5" id="senior-manager-count" />
+                        </td>
+                        <td id="free-senior-managers"></td>
+                    </tr>
+                    <tr>
+                        <td>Min secs for answer</td>
+                        <td>
+                            <input type="text" value="5" id="min-secs-count" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Max sec for answer</td>
+                        <td>
+                            <input type="text" value="10" id="max-secs-count" />
+                        </td>
+                    </tr>
+
+                </table>
+            </div>
+
+            <div class="buttons-line">
+                <button id="btn-start">Start</button>
+                <button id="btn-stop">Stop</button>
+                <button id="btn-restart">Restart</button>
+                <button id="btn-send-call">Send a call</button>
+            </div>
+        </div>
+
+        <div class="log-panel">
+            <h3>Events monitoring</h3>
+            <div id="container">
+            </div>
+        </div>
+    </div>
+
+
+
+    <script src="~/lib/jquery/jquery.min.js"></script>
+    <script src="~/lib/signalr/signalr.min.js"></script>
+    <script>
+        $(function () {
+            const connection = new signalR.HubConnectionBuilder()
+                .withUrl("/Hubs/CallCenter")
+                .build();
+
+            connection.on('appendLine',
+                (response) => {
+                    var span = $('<div/>');
+                    span.html(response.message);
+                    $('#container').prepend(span);
+                    $('#free-operators').html(response.freeOperators);
+                    $('#free-managers').html(response.freeManagers);
+                    $('#free-senior-managers').html(response.freeSeniorManagers);
+                });
+
+            connection.start().catch(function (err) {
+                return console.error(err.toString());
+            });
+
+            $('#btn-start').click(function () {
+                connection.invoke("Start",
+                    {
+                        OperatorCount: $('#operator-count').val(),
+                        ManagerCount: $('#manager-count').val(),
+                        SeniorManagerCount: $('#senior-manager-count').val(),
+                        MinSecAnswer: $('#min-secs-count').val(),
+                        MaxSecAnswer: $('#max-secs-count').val()
+                    });
+            });
+
+            $('#btn-stop').click(function () {
+                connection.invoke("Stop");
+            });
+
+            $('#btn-restart').click(function () {
+                connection.invoke("Restart",
+                    {
+                        OperatorCount: $('#operator-count').val(),
+                        ManagerCount: $('#manager-count').val(),
+                        SeniorManagerCount: $('#senior-manager-count').val(),
+                        MinSecAnswer: $('#min-secs-count').val(),
+                        MaxSecAnswer: $('#max-secs-count').val()
+                    });
+            });
+
+            $('#btn-send-call').click(function () {
+                connection.invoke("SendCall");
+            });
+
+        });
+
+    </script>
+</body>
+</html>
