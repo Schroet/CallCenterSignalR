@@ -72,6 +72,8 @@ namespace CallCenter.Models
             //{
             //    Message = $"Hello! I'm {Title} {Id}, thread id: {Thread.CurrentThread.ManagedThreadId}"
             //});
+
+            //return "success";
         }
 
         public void Kill()

@@ -7,6 +7,7 @@
         public int SeniorManagerCount { get; set; }
         public int MinSecAnswer { get; set; }
         public int MaxSecAnswer { get; set; }
+        public int CallsAmount { get; set; }
 
     }
 }

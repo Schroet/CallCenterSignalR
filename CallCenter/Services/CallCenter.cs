@@ -22,10 +22,14 @@ namespace CallCenter.Services
         private bool _isPaused = false;
         private SimulationOptions _options;
         private readonly List<Operator> _operators = new List<Operator>();
+        private List<Call> _calls = new List<Call>();
+
 
         public void Start(SimulationOptions options)
         {
             CallCenterHubAppendLine("Simulation starting");
+
+            //options.CallsAmount = _options.CallsAmount;
 
             if (_isRunning) throw new Exception("Already started");
 
@@ -50,6 +54,13 @@ namespace CallCenter.Services
                 _operators.Add(@operator);
             }
 
+            for (var i = 0; i < _options.CallsAmount; i++)
+            {
+                var duration = _random.Next(_options.MinSecAnswer, _options.MaxSecAnswer);
+                var call = new Call { Id = id++, Duration = duration, IsActive = true };
+                _calls.Add(call);
+            }
+
             foreach (var @operator in _operators)
             {
                 @operator.StatusChanged += operator_StatusChanged;
@@ -59,6 +70,30 @@ namespace CallCenter.Services
 
             _isRunning = true;
             CallCenterHubAppendLine("Simulation started");
+
+            //Section of handling with generated calls list.
+            CallCenterHubAppendLine("Operators starts answer the calls.");
+
+
+            var amount = _calls.Where(x => x.IsActive == true).Count();
+
+            while (_calls.Where(x => x.IsActive == true) != null)
+            {
+                var @freeOperator = _operators.OrderBy(_ => _.Title).FirstOrDefault(_ => !_.IsBusy);
+                if (@freeOperator == null)
+                {
+                    CallCenterHubAppendLine("Sorry! All operators are busy. Try again later.");
+                }
+                else
+                {
+                    var activeCall = _calls.Where(x => x.IsActive == true).FirstOrDefault();
+                    @freeOperator.Answer(activeCall.Duration);
+                    activeCall.IsActive = false;
+                    
+                }  
+            }
+
+            CallCenterHubAppendLine("Simulation ended");
         }
 
         private void operator_StatusChanged(object sender, StatusChangedEventArgs e)
@@ -105,6 +140,8 @@ namespace CallCenter.Services
 
             CallCenterHubAppendLine("Call sent");
         }
+
+
 
         private void CallCenterHubAppendLine(string message)
         {
