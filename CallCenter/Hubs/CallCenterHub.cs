@@ -30,6 +30,7 @@ namespace CallCenter.Hubs
 
         public void Restart(SimulationOptions options)
         {
+            Stop();
             Start(options);
            // Debug.WriteLine("restart executed");
         }

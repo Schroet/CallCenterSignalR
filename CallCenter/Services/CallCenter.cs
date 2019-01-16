@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using CallCenter.Hubs;
 using CallCenter.Models;
 using Microsoft.AspNetCore.SignalR;
@@ -74,26 +75,50 @@ namespace CallCenter.Services
             //Section of handling with generated calls list.
             CallCenterHubAppendLine("Operators starts answer the calls.");
 
+            //while (_calls.Any())
+            //{
+            //    var @freeOperator = _operators.OrderBy(_ => _.Title).FirstOrDefault(_ => !_.IsBusy);
+            //    if (@freeOperator == null)
+            //    {
+            //        CallCenterHubAppendLine("Sorry! All operators are busy. Try again later.");
+            //    }
+            //    else
+            //    {
+            //        var activeCall = _calls.Where(x => x.IsActive == true).FirstOrDefault();
+            //        @freeOperator.Answer(activeCall.Duration);
+            //        activeCall.IsActive = false;
+            //        _calls.Remove(activeCall);
 
-            var amount = _calls.Where(x => x.IsActive == true).Count();
+            //    }
 
-            while (_calls.Where(x => x.IsActive == true) != null)
-            {
-                var @freeOperator = _operators.OrderBy(_ => _.Title).FirstOrDefault(_ => !_.IsBusy);
-                if (@freeOperator == null)
+            //}
+
+               Task.Run(() => {
+
+                for (var idx = 0; idx < 100; ++idx)
                 {
-                    CallCenterHubAppendLine("Sorry! All operators are busy. Try again later.");
+                    var @freeOperator = _operators.OrderBy(_ => _.Title).FirstOrDefault(_ => !_.IsBusy);
+                    if (@freeOperator == null)
+                    {
+                        CallCenterHubAppendLine("Sorry! All operators are busy. Try again later.");
+                    }
+                    else
+                    {
+                        var activeCall = _calls.Where(x => x.IsActive == true).FirstOrDefault();
+                        @freeOperator.Answer(activeCall.Duration);
+                            CallCenterHubAppendLine(freeOperator.Title +" "+ freeOperator.Id +"" + " took a call " + activeCall.Id);
+                            activeCall.IsActive = false;
+                        _calls.Remove(activeCall);
+
+                    }
                 }
-                else
-                {
-                    var activeCall = _calls.Where(x => x.IsActive == true).FirstOrDefault();
-                    @freeOperator.Answer(activeCall.Duration);
-                    activeCall.IsActive = false;
-                    
-                }  
-            }
 
-            CallCenterHubAppendLine("Simulation ended");
+                Thread.Sleep(_random.Next(1000, 5000));
+            });
+
+
+            CallCenterHubAppendLine("Simulation stopped");
+            //Stop();
         }
 
         private void operator_StatusChanged(object sender, StatusChangedEventArgs e)
@@ -117,6 +142,7 @@ namespace CallCenter.Services
 
             foreach (var thread in _operators) thread.Kill();
             _operators.Clear();
+            _calls.Clear();
 
             CallCenterHubAppendLine("Simulation stopped");
         }
