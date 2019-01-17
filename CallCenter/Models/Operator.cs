@@ -62,7 +62,7 @@ namespace CallCenter.Models
             }
         }
 
-        public async Task<string> Answer(int duration)
+        public void Answer(int duration)
         {
             if (IsBusy) throw new Exception("Operator is busy!");
             _stop = DateTime.Now.AddSeconds(duration);
@@ -74,7 +74,6 @@ namespace CallCenter.Models
             //    Message = $"Hello! I'm {Title} {Id}, thread id: {Thread.CurrentThread.ManagedThreadId}"
             //});
 
-            return await Task.FromResult<string>("success");
         }
 
         public void Kill()

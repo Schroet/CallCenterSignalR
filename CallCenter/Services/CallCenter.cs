@@ -97,7 +97,7 @@ namespace CallCenter.Services
 
                     if (call != null)
                     {
-                        Thread.Sleep(call.Duration * 1000 / 5);
+                        Thread.Sleep(call.Duration * 1000 / 15);
                         CallCenterHubAppendLine("Sending a call");
                         task = Task.Run(() => SendingCallsAsync());
                         task.Wait();
@@ -192,7 +192,7 @@ namespace CallCenter.Services
             CallCenterHubAppendLine("Call sent");
         }
 
-        public async Task SendingCallsAsync()
+        public void SendingCallsAsync()
         {
             CallCenterHubAppendLine("Call sent");
 
@@ -221,7 +221,7 @@ namespace CallCenter.Services
             else
             {
                 CallCenterHubAppendLine(@operator.Title + " " + @operator.Id + "" + " took a call " + call.Id);
-                await @operator.Answer(call.Duration);
+                @operator.Answer(call.Duration);
 
                 var callExists = _calls.Where(x => x.Id == call.Id).FirstOrDefault();
                 if (callExists != null)
