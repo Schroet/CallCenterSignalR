@@ -100,11 +100,16 @@ namespace CallCenter.Services
             {
                 Task task = null;
 
-                if (_calls.Any())
+                if (_calls.Any() || _awaitingCalls.Any())
                 {  
                    var period = _calls.Where(x => x.IsActive == true).FirstOrDefault().Duration;
+                    if(period > 0)
+                    {
+                        period = _awaitingCalls.Where(x => x.IsActive == true).FirstOrDefault().Duration;
+                    }
                     Thread.Sleep(period * 1000/30);
                     CallCenterHubAppendLine("Sending a call");
+                    period = 0;
                     task = Task.Run(() => SendingCallsAsync());
                     task.Wait();
                 }
@@ -117,9 +122,18 @@ namespace CallCenter.Services
             }
 
             //CallCenterHubAppendLine("Simulation stopped");
+            var allEmployess = _operators.Where(x => x.Id > 0).Count();
+            var freeEmployeesAmount = _operators.Where(x => x.IsBusy == false).Count();
+
+            while (allEmployess != freeEmployeesAmount)
+            {
+                Thread.Sleep(5000);
+                Task.Delay(250);
+                freeEmployeesAmount = _operators.Where(x => x.IsBusy == false).Count();
+            }
+
+                
             Stop();
-            _calls.Clear();
-            _awaitingCalls.Clear();
 
 
             //var task = Task.Run(() => AnsweringProcess());
@@ -182,6 +196,7 @@ namespace CallCenter.Services
             foreach (var thread in _operators) thread.Kill();
             _operators.Clear();
             _calls.Clear();
+            _awaitingCalls.Clear();
 
             CallCenterHubAppendLine("Simulation stopped");
         }
@@ -217,15 +232,18 @@ namespace CallCenter.Services
                 call = _calls.Where(x => x.IsActive == true).FirstOrDefault();
                 call.IsActive = false;
             }
-            else
+            else if (_awaitingCalls.Any())
             {
                 call = _awaitingCalls.Where(x => x.IsActive == true).FirstOrDefault();
                 call.IsActive = false;
             }
 
+            else { return; }
+
             var @operator = _operators.OrderBy(_ => _.Title).FirstOrDefault(_ => !_.IsBusy);
             if (@operator == null)
             {
+                call.IsActive = true;
                 _awaitingCalls.Add(call);
                 CallCenterHubAppendLine("Sorry! All operators are busy. Try again later.");
             }
