@@ -99,15 +99,19 @@ namespace CallCenter.Services
             while (_calls.Any() || _awaitingCalls.Any())
             {
                 Task task = null;
+                int? period = null;
 
                 if (_calls.Any() || _awaitingCalls.Any())
                 {  
-                   var period = _calls.Where(x => x.IsActive == true).FirstOrDefault().Duration;
-                    if(period > 0)
+                    if(_calls.Where(x => x.IsActive == true).FirstOrDefault().Duration == null)
+
+                   period = _calls.Where(x => x.IsActive == true).FirstOrDefault().Duration;
+
+                    if(!period.HasValue)
                     {
                         period = _awaitingCalls.Where(x => x.IsActive == true).FirstOrDefault().Duration;
                     }
-                    Thread.Sleep(period * 1000/30);
+                    Thread.Sleep(period.Value * 1000/30);
                     CallCenterHubAppendLine("Sending a call");
                     period = 0;
                     task = Task.Run(() => SendingCallsAsync());
