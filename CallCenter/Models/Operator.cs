@@ -54,7 +54,6 @@ namespace CallCenter.Models
                     StatusChanged?.Invoke(this, new StatusChangedEventArgs
                     {
                         Message = $"Hello! I'm {Title} {Id}, thread id: {Thread.CurrentThread.ManagedThreadId}"
-                        //Message = $"Operator {Id} of type {Title} is free now, thread id: {Thread.CurrentThread.ManagedThreadId}"
                     });    
                 }
 
@@ -68,12 +67,6 @@ namespace CallCenter.Models
             _stop = DateTime.Now.AddSeconds(duration);
             IsBusy = true;
             _changedStatus = true;
-
-            //StatusChanged?.Invoke(this, new StatusChangedEventArgs
-            //{
-            //    Message = $"Hello! I'm {Title} {Id}, thread id: {Thread.CurrentThread.ManagedThreadId}"
-            //});
-
         }
 
         public void Kill()
