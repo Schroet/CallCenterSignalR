@@ -5,14 +5,7 @@ using System.Diagnostics;
 
 namespace CallCenter.Hubs
 {
-    public interface ICallCenterClient
-    {
-        void AppendLine(string message);
-    }
-
-    //Usable ?
-
-    public class CallCenterHub : Hub<ICallCenterClient>
+    public class CallCenterHub : Hub
     {
         private readonly ICallCenter _callCenter;
         public CallCenterHub(ICallCenter callCenter)

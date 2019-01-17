@@ -31,8 +31,6 @@ namespace CallCenter.Services
         {
             CallCenterHubAppendLine("Simulation starting");
 
-            //options.CallsAmount = _options.CallsAmount;
-
             if (_isRunning) throw new Exception("Already started");
 
             _options = options;
@@ -74,7 +72,6 @@ namespace CallCenter.Services
             _isRunning = true;
             CallCenterHubAppendLine("Simulation started");
 
-            //Section for handling with generated calls list.
             CallCenterHubAppendLine("Operators starts answer the calls.");
 
             while (_calls.Any() || _awaitingCalls.Any())
@@ -109,28 +106,6 @@ namespace CallCenter.Services
             Stop();
         }
 
-        public void AnsweringProcess()
-        {
-            for (var idx = 0; idx < 100; ++idx)
-            {
-                var @freeOperator = _operators.OrderBy(_ => _.Title).FirstOrDefault(_ => !_.IsBusy);
-                var activeCall = _calls.Where(x => x.IsActive == true).FirstOrDefault();
-                if (@freeOperator == null)
-                {
-                    _awaitingCalls.Add(activeCall);
-                    CallCenterHubAppendLine("Sorry! All operators are busy. Try again later.");
-                }
-                else
-                {
-                    CallCenterHubAppendLine(freeOperator.Title + " " + freeOperator.Id + "" + " took a call " + activeCall.Id);
-                    @freeOperator.Answer(activeCall.Duration);
-                    CallCenterHubAppendLine(freeOperator.Title + " " + freeOperator.Id + "" + " ended a call " + activeCall.Id);
-                    activeCall.IsActive = false;
-                    _calls.Remove(activeCall);
-                }
-            }
-        }
-
         public void WaitForEmployeeEndsCalls()
         {
             var allEmployess = _operators.Where(x => x.Id > 0).Count();
@@ -143,7 +118,6 @@ namespace CallCenter.Services
                 freeEmployeesAmount = _operators.Where(x => x.IsBusy == false).Count();
             } 
         }
-
 
         private void operator_StatusChanged(object sender, StatusChangedEventArgs e)
         {

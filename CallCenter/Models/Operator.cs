@@ -37,7 +37,7 @@ namespace CallCenter.Models
                 {
                     StatusChanged?.Invoke(this, new StatusChangedEventArgs
                     {
-                        Message = $"Operator {Id} of type {Title} is now busy till {_stop} seconds, thread id: {Thread.CurrentThread.ManagedThreadId}"
+                        Message = $"Operator {Id} of type {Title} is now busy till {_stop}, thread id: {Thread.CurrentThread.ManagedThreadId}"
                     });
                     _changedStatus = false;
                 }
@@ -48,7 +48,7 @@ namespace CallCenter.Models
 
                     StatusChanged?.Invoke(this, new StatusChangedEventArgs
                     {
-                        Message = $"Employee {Title} {Id} ended a call, thread id: {Thread.CurrentThread.ManagedThreadId}" 
+                        Message = $"{Title} {Id} ended a call, thread id: {Thread.CurrentThread.ManagedThreadId}" 
                     });
 
                     StatusChanged?.Invoke(this, new StatusChangedEventArgs
