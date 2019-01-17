@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace CallCenter.Models
 {
@@ -61,7 +62,7 @@ namespace CallCenter.Models
             }
         }
 
-        public void Answer(int duration)
+        public async Task<string> Answer(int duration)
         {
             if (IsBusy) throw new Exception("Operator is busy!");
             _stop = DateTime.Now.AddSeconds(duration);
@@ -73,7 +74,7 @@ namespace CallCenter.Models
             //    Message = $"Hello! I'm {Title} {Id}, thread id: {Thread.CurrentThread.ManagedThreadId}"
             //});
 
-            //return "success";
+            return await Task.FromResult<string>("success");
         }
 
         public void Kill()

@@ -24,6 +24,7 @@ namespace CallCenter.Services
         private SimulationOptions _options;
         private readonly List<Operator> _operators = new List<Operator>();
         private List<Call> _calls = new List<Call>();
+        private List<Call> _awaitingCalls = new List<Call>();
 
 
         public void Start(SimulationOptions options)
@@ -35,7 +36,8 @@ namespace CallCenter.Services
             if (_isRunning) throw new Exception("Already started");
 
             _options = options;
-            var id = 0;
+            var id = 1;
+            var callId = 1;
 
             for (var i = 0; i < _options.OperatorCount; i++)
             {
@@ -58,7 +60,7 @@ namespace CallCenter.Services
             for (var i = 0; i < _options.CallsAmount; i++)
             {
                 var duration = _random.Next(_options.MinSecAnswer, _options.MaxSecAnswer);
-                var call = new Call { Id = id++, Duration = duration, IsActive = true };
+                var call = new Call { Id = callId++, Duration = duration, IsActive = true };
                 _calls.Add(call);
             }
 
@@ -93,33 +95,70 @@ namespace CallCenter.Services
 
             //}
 
-               Task.Run(() => {
 
-                for (var idx = 0; idx < 100; ++idx)
-                {
-                    var @freeOperator = _operators.OrderBy(_ => _.Title).FirstOrDefault(_ => !_.IsBusy);
-                    if (@freeOperator == null)
-                    {
-                        CallCenterHubAppendLine("Sorry! All operators are busy. Try again later.");
-                    }
-                    else
-                    {
-                        var activeCall = _calls.Where(x => x.IsActive == true).FirstOrDefault();
-                        @freeOperator.Answer(activeCall.Duration);
-                            CallCenterHubAppendLine(freeOperator.Title +" "+ freeOperator.Id +"" + " took a call " + activeCall.Id);
-                            activeCall.IsActive = false;
-                        _calls.Remove(activeCall);
+            while (_calls.Any() || _awaitingCalls.Any())
+            {
+                Task task = null;
 
-                    }
+                if (_calls.Any())
+                {  
+                   var period = _calls.Where(x => x.IsActive == true).FirstOrDefault().Duration;
+                    Thread.Sleep(period * 1000/30);
+                    CallCenterHubAppendLine("Sending a call");
+                    task = Task.Run(() => SendingCallsAsync());
+                    task.Wait();
                 }
 
-                Thread.Sleep(_random.Next(1000, 5000));
-            });
+                else
+                {
+                    CallCenterHubAppendLine("Simulation stopped");
+                    Stop();
+                }
+            }
+
+            //CallCenterHubAppendLine("Simulation stopped");
+            Stop();
+            _calls.Clear();
+            _awaitingCalls.Clear();
 
 
-            CallCenterHubAppendLine("Simulation stopped");
+            //var task = Task.Run(() => AnsweringProcess());
+            //task.Wait();
+            //while (_operators.Where(x => x.IsBusy == true).Any())
+            //{
+            //    if (_awaitingCalls.Any())
+            //    {
+            //        var taskRestart = Task.Run(() => AnsweringProcess());
+            //        taskRestart.Wait();
+            //    }
+            //}
+
+            //CallCenterHubAppendLine("Simulation stopped");
             //Stop();
         }
+
+        public void AnsweringProcess()
+        {
+            for (var idx = 0; idx < 100; ++idx)
+            {
+                var @freeOperator = _operators.OrderBy(_ => _.Title).FirstOrDefault(_ => !_.IsBusy);
+                var activeCall = _calls.Where(x => x.IsActive == true).FirstOrDefault();
+                if (@freeOperator == null)
+                {
+                    _awaitingCalls.Add(activeCall);
+                    CallCenterHubAppendLine("Sorry! All operators are busy. Try again later.");
+                }
+                else
+                {
+                    CallCenterHubAppendLine(freeOperator.Title + " " + freeOperator.Id + "" + " took a call " + activeCall.Id);
+                    @freeOperator.Answer(activeCall.Duration);
+                    CallCenterHubAppendLine(freeOperator.Title + " " + freeOperator.Id + "" + " ended a call " + activeCall.Id);
+                    activeCall.IsActive = false;
+                    _calls.Remove(activeCall);
+                }
+            }
+        }
+
 
         private void operator_StatusChanged(object sender, StatusChangedEventArgs e)
         {
@@ -165,6 +204,47 @@ namespace CallCenter.Services
             }
 
             CallCenterHubAppendLine("Call sent");
+        }
+
+        public async Task SendingCallsAsync()
+        {
+            CallCenterHubAppendLine("Call sent");
+
+            Call call = null;
+
+            if (_calls.Any())
+            {
+                call = _calls.Where(x => x.IsActive == true).FirstOrDefault();
+                call.IsActive = false;
+            }
+            else
+            {
+                call = _awaitingCalls.Where(x => x.IsActive == true).FirstOrDefault();
+                call.IsActive = false;
+            }
+
+            var @operator = _operators.OrderBy(_ => _.Title).FirstOrDefault(_ => !_.IsBusy);
+            if (@operator == null)
+            {
+                _awaitingCalls.Add(call);
+                CallCenterHubAppendLine("Sorry! All operators are busy. Try again later.");
+            }
+            else
+            {
+                CallCenterHubAppendLine(@operator.Title + " " + @operator.Id + "" + " took a call " + call.Id);
+                await @operator.Answer(call.Duration);
+                call.IsActive = false;
+
+                var callExists = _calls.Where(x => x.Id == call.Id).FirstOrDefault();
+                if(callExists != null)
+                {
+                    _calls.Remove(call);
+                }
+                else
+                {
+                    _awaitingCalls.Remove(call);
+                }        
+            } 
         }
 
 
