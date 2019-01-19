@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace CallCenter.Models
 {
@@ -13,7 +12,11 @@ namespace CallCenter.Models
 
         private bool _isRunning = true;
         private bool _changedStatus = false;
-        private DateTime _stop = DateTime.MinValue;
+        //private DateTime _stop = DateTime.MinValue;
+        private int _leftDuration;
+        private const int period = 100;
+        private Call _currentCall;
+
 
         public event EventHandler<StatusChangedEventArgs> StatusChanged;
 
@@ -37,34 +40,41 @@ namespace CallCenter.Models
                 {
                     StatusChanged?.Invoke(this, new StatusChangedEventArgs
                     {
-                        Message = $"Operator {Id} of type {Title} is now busy till {_stop}, thread id: {Thread.CurrentThread.ManagedThreadId}"
+                        Message = $"Operator {Id} of type {Title} is now busy for {_leftDuration / 1000} secs, thread id: {Thread.CurrentThread.ManagedThreadId}"
                     });
                     _changedStatus = false;
                 }
 
-                if (IsBusy && DateTime.Now >= _stop)
+                if (IsBusy && _leftDuration <= 0 && _currentCall != null)
                 {
                     IsBusy = false;
+                    _currentCall.IsActive = false;
+                    _currentCall = null;
 
                     StatusChanged?.Invoke(this, new StatusChangedEventArgs
                     {
-                        Message = $"{Title} {Id} ended a call, thread id: {Thread.CurrentThread.ManagedThreadId}" 
+                        Message = $"{Title} {Id} ended a call, thread id: {Thread.CurrentThread.ManagedThreadId}"
                     });
 
                     StatusChanged?.Invoke(this, new StatusChangedEventArgs
                     {
                         Message = $"Hello! I'm {Title} {Id}, thread id: {Thread.CurrentThread.ManagedThreadId}"
-                    });    
+                    });
                 }
 
-                Thread.Sleep(100);
+                Thread.Sleep(period);
+                if (IsBusy)
+                {
+                    _leftDuration -= period;
+                }
             }
         }
 
-        public void Answer(int duration)
+        public void Answer(Call call)
         {
             if (IsBusy) throw new Exception("Operator is busy!");
-            _stop = DateTime.Now.AddSeconds(duration);
+            _currentCall = call;
+            _leftDuration = _currentCall.Duration * 1000;
             IsBusy = true;
             _changedStatus = true;
         }

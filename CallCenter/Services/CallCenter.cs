@@ -3,13 +3,9 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
-using CallCenter.Helpers;
 using CallCenter.Hubs;
 using CallCenter.Models;
 using Microsoft.AspNetCore.SignalR;
-
-
 
 namespace CallCenter.Services
 {
@@ -24,25 +20,17 @@ namespace CallCenter.Services
 
         private readonly Random _random = new Random();
         private bool _isRunning = false;
-        private bool _isPaused = false;
         private SimulationOptions _options;
         private readonly List<Operator> _operators = new List<Operator>();
-
-        //private List<Call> _calls = new List<Call>();
-        //private List<Call> _awaitingCalls = new List<Call>();
-
-        private ConcurrentBag<Call> _safeCalls = new ConcurrentBag<Call>();
-        private ConcurrentBag<Call> _safeAwaitingCalls = new ConcurrentBag<Call>();
-
-        //public SynchronizedCollection<Call> _safeCalls = new SynchronizedCollection<Call>();
-        //private SynchronizedCollection<Call> _safeAwaitingCalls = new SynchronizedCollection<Call>();
-
+        private readonly ConcurrentQueue<Call> _callsToProcess = new ConcurrentQueue<Call>();
 
         public void Start(SimulationOptions options)
         {
             CallCenterHubAppendLine("Simulation starting");
 
             if (_isRunning) throw new Exception("Already started");
+
+            _callsToProcess.Clear();
 
             _options = options;
             var id = 1;
@@ -66,18 +54,11 @@ namespace CallCenter.Services
                 _operators.Add(@operator);
             }
 
-            //for (var i = 0; i < _options.CallsAmount; i++)
-            //{
-            //    var duration = _random.Next(_options.MinSecAnswer, _options.MaxSecAnswer);
-            //    var call = new Call { Id = callId++, Duration = duration, IsActive = true };
-            //    _calls.Add(call);
-            //}
-
             for (var i = 0; i < _options.CallsAmount; i++)
             {
                 var duration = _random.Next(_options.MinSecAnswer, _options.MaxSecAnswer);
                 var call = new Call { Id = callId++, Duration = duration, IsActive = true };
-                _safeCalls.Add(call);
+                _callsToProcess.Enqueue(call);
             }
 
             foreach (var @operator in _operators)
@@ -86,67 +67,50 @@ namespace CallCenter.Services
                 var thread = new Thread(() => @operator.Start());
                 thread.Start();
             }
-
-            var callThread = new Thread(ActivateCallsSending);
-            callThread.Start();
-
-            var t = Task.Run(() => ActivateCallsSending());
             _isRunning = true;
-            t.Wait();
-
-            
+            new Thread(ActivateCallProcessing).Start();   
             CallCenterHubAppendLine("Simulation started");
+            CallCenterHubAppendLine("Operators start answer the calls.");
+        }
 
-            CallCenterHubAppendLine("Operators starts answer the calls.");
-
-
-
-            WaitForEmployeeEndsCalls();
+        public void Restart()
+        {
             Stop();
+            Start(_options);
         }
 
-        public void ActivateCallsSending()
+        public void ActivateCallProcessing()
         {
-            while (_safeCalls.Any() || _safeAwaitingCalls.Any())
+            while (_callsToProcess.Any())
             {
-                Task task = null;
+                if (!_callsToProcess.TryDequeue(out Call call)) continue; // for a call to process
 
-                if (_safeCalls.Any() || _safeAwaitingCalls.Any())
+                var @operator = _operators.OrderBy(_ => _.Title).FirstOrDefault(_ => !_.IsBusy);
+
+                while (@operator == null && _isRunning == true) // looking for a free guy
                 {
-                    var call = _safeCalls.FirstOrDefault();
-
-                    if (call == null)
-                    {
-                        call = _safeAwaitingCalls.Where(x => x.IsActive == true).FirstOrDefault();
-                        if (call == null)
-                        {
-                            CallCenterHubAppendLine("Calls are ended");
-                            _safeAwaitingCalls.Clear();
-                        }
-                    }
-
-                    if (call != null)
-                    {
-                        Thread.Sleep(call.Duration * 1000 / 15);
-                        CallCenterHubAppendLine("Sending a call");
-                        task = Task.Run(() => SendingCallsAsync());
-                        task.Wait();
-                    }
+                    // all operators are busy
+                    CallCenterHubAppendLine("All operators are busy");
+                    Thread.Sleep(500);
+                    @operator = _operators.OrderBy(_ => _.Title).FirstOrDefault(_ => !_.IsBusy);
                 }
+
+                if( call != null && @operator != null)
+                {
+                    @operator.Answer(call);
+                    Thread.Sleep(500);
+                }    
             }
-        }
 
-        public void WaitForEmployeeEndsCalls()
-        {
-            var allEmployess = _operators.Where(x => x.Id > 0).Count();
-            var freeEmployeesAmount = _operators.Where(x => x.IsBusy == false).Count();
-
-            while (allEmployess != freeEmployeesAmount)
+            while (_operators.Any(_ => _.IsBusy)) // waiting for all operators to process calls
             {
-                Thread.Sleep(5000);
-                Task.Delay(250);
-                freeEmployeesAmount = _operators.Where(x => x.IsBusy == false).Count();
-            } 
+                Thread.Sleep(2000);
+            }
+
+            if(_isRunning != false)
+            {
+                Stop();
+            }       
         }
 
         private void operator_StatusChanged(object sender, StatusChangedEventArgs e)
@@ -154,90 +118,22 @@ namespace CallCenter.Services
             CallCenterHubAppendLine(e.Message);
         }
 
-        public void Pause()
-        {
-            if (!_isRunning) throw new Exception("Simulation not started yet");
-            _isPaused = !_isPaused;
-            CallCenterHubAppendLine("Simulation restarting");
-        }
-
         public void Stop()
         {
             CallCenterHubAppendLine("Simulation stopping");
 
-            if (!_isRunning) throw new Exception("Simulation not started yet");
+            //if (!_isRunning) throw new Exception("Simulation not started yet");
             _isRunning = false;
 
-            foreach (var thread in _operators) thread.Kill();
+            foreach (var @operator in _operators) @operator.Kill();
             _operators.Clear();
-            _safeCalls.Clear();
-            _safeAwaitingCalls.Clear();
+            _callsToProcess.Clear();
 
             CallCenterHubAppendLine("Simulation stopped");
         }
 
         public bool IsRunning => _isRunning;
 
-        public void SendCall()
-        {
-            CallCenterHubAppendLine("Sending a call");
-
-            var @operator = _operators.OrderBy(_ => _.Title).FirstOrDefault(_ => !_.IsBusy);
-            if (@operator == null)
-            {
-                CallCenterHubAppendLine("Sorry! All operators are busy. Try again later.");
-            }
-            else
-            {
-                var duration = _random.Next(_options.MinSecAnswer, _options.MaxSecAnswer);
-                @operator.Answer(duration);
-            }
-
-            CallCenterHubAppendLine("Call sent");
-        }
-
-        public void SendingCallsAsync()
-        {
-            CallCenterHubAppendLine("Call sent");
-
-            Call call = null;
-
-            if (_safeCalls.Any())
-            {
-                call = _safeCalls.FirstOrDefault();
-                call.IsActive = false;
-            }
-            else if (_safeAwaitingCalls.Any())
-            {
-                call = _safeAwaitingCalls.FirstOrDefault();
-            }
-
-            var @operator = _operators.OrderBy(_ => _.Title).FirstOrDefault(_ => !_.IsBusy);
-            if (@operator == null)
-            {      
-                var waitingCall = _safeAwaitingCalls.Where(x => x.Id == call.Id).FirstOrDefault();
-                if(waitingCall == null)
-                {
-                    _safeAwaitingCalls.Add(call);
-                } 
-                CallCenterHubAppendLine("Sorry! All operators are busy. Try again later.");
-            }
-            else
-            {
-                CallCenterHubAppendLine(@operator.Title + " " + @operator.Id + "" + " took a call " + call.Id);
-                @operator.Answer(call.Duration);
-
-                var callExists = _safeCalls.Where(x => x.Id == call.Id).FirstOrDefault();
-                if (callExists != null)
-                {
-                    ConcurrentBag.Remove(_safeCalls, callExists);
-                }
-                else
-                {
-                    ConcurrentBag.Remove(_safeAwaitingCalls, callExists);
-                }
-            }
-        }
 
         private void CallCenterHubAppendLine(string message)
         {
@@ -254,6 +150,5 @@ namespace CallCenter.Services
                 FreeSeniorManagers = _operators.Count(_ => !_.IsBusy && _.Title == OperatorTitle.SeniorManager)
             };
         }
-
     }
 }

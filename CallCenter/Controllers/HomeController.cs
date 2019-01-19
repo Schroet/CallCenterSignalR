@@ -8,7 +8,5 @@ namespace CallCenter.Controllers
         {
             return View();
         }
-
-        //branch clear
     }
 }

@@ -1,6 +1,7 @@
 ﻿using CallCenter.Models;
 using CallCenter.Services;
 using Microsoft.AspNetCore.SignalR;
+using System;
 using System.Diagnostics;
 
 namespace CallCenter.Hubs
@@ -18,14 +19,13 @@ namespace CallCenter.Hubs
             if (!_callCenter.IsRunning)
             {
                 _callCenter.Start(options);
-            }   
+                Console.WriteLine("Method ended");
+            }
         }
 
         public void Restart(SimulationOptions options)
         {
-            Stop();
-            Start(options);
-           // Debug.WriteLine("restart executed");
+            _callCenter.Restart();
         }
 
         public void Stop()
@@ -33,14 +33,6 @@ namespace CallCenter.Hubs
             if (_callCenter.IsRunning)
             {
                 _callCenter.Stop();
-            }
-        }
-
-        public void SendCall()
-        {
-            if (_callCenter.IsRunning)
-            {
-                _callCenter.SendCall();
             }
         }
 
