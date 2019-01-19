@@ -1,11 +1,15 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using CallCenter.Helpers;
 using CallCenter.Hubs;
 using CallCenter.Models;
 using Microsoft.AspNetCore.SignalR;
+
+
 
 namespace CallCenter.Services
 {
@@ -25,6 +29,12 @@ namespace CallCenter.Services
         private readonly List<Operator> _operators = new List<Operator>();
         private List<Call> _calls = new List<Call>();
         private List<Call> _awaitingCalls = new List<Call>();
+
+        private ConcurrentBag<Call> _safeCalls = new ConcurrentBag<Call>();
+        private ConcurrentBag<Call> _safeAwaitingCalls = new ConcurrentBag<Call>();
+
+        //public SynchronizedCollection<Call> _safeCalls = new SynchronizedCollection<Call>();
+        //private SynchronizedCollection<Call> _safeAwaitingCalls = new SynchronizedCollection<Call>();
 
 
         public void Start(SimulationOptions options)
@@ -62,6 +72,13 @@ namespace CallCenter.Services
                 _calls.Add(call);
             }
 
+            for (var i = 0; i < _options.CallsAmount; i++)
+            {
+                var duration = _random.Next(_options.MinSecAnswer, _options.MaxSecAnswer);
+                var call = new Call { Id = callId++, Duration = duration, IsActive = true };
+                _safeCalls.Add(call);
+            }
+
             foreach (var @operator in _operators)
             {
                 @operator.StatusChanged += operator_StatusChanged;
@@ -69,7 +86,7 @@ namespace CallCenter.Services
                 thread.Start();
             }
 
-            var callThread = new Thread(() => ActivateCallsSending());
+            var callThread = new Thread(ActivateCallsSending);
             callThread.Start();
 
             var t = Task.Run(() => ActivateCallsSending());
@@ -88,21 +105,21 @@ namespace CallCenter.Services
 
         public void ActivateCallsSending()
         {
-            while (_calls.Any() || _awaitingCalls.Any())
+            while (_safeCalls.Any() || _safeAwaitingCalls.Any())
             {
                 Task task = null;
 
-                if (_calls.Any() || _awaitingCalls.Any())
+                if (_safeCalls.Any() || _safeAwaitingCalls.Any())
                 {
-                    var call = _calls.FirstOrDefault();
+                    var call = _safeCalls.FirstOrDefault();
 
                     if (call == null)
                     {
-                        call = _awaitingCalls.Where(x => x.IsActive == true).FirstOrDefault();
+                        call = _safeAwaitingCalls.Where(x => x.IsActive == true).FirstOrDefault();
                         if (call == null)
                         {
                             CallCenterHubAppendLine("Calls are ended");
-                            _awaitingCalls.Clear();
+                            _safeAwaitingCalls.Clear();
                         }
                     }
 
@@ -185,21 +202,21 @@ namespace CallCenter.Services
 
             if (_calls.Any())
             {
-                call = _calls.FirstOrDefault();
+                call = _safeCalls.FirstOrDefault();
                 call.IsActive = false;
             }
-            else if (_awaitingCalls.Any())
+            else if (_safeAwaitingCalls.Any())
             {
-                call = _awaitingCalls.FirstOrDefault();
+                call = _safeAwaitingCalls.FirstOrDefault();
             }
 
             var @operator = _operators.OrderBy(_ => _.Title).FirstOrDefault(_ => !_.IsBusy);
             if (@operator == null)
             {      
-                var waitingCall = _awaitingCalls.Where(x => x.Id == call.Id).FirstOrDefault();
+                var waitingCall = _safeAwaitingCalls.Where(x => x.Id == call.Id).FirstOrDefault();
                 if(waitingCall == null)
                 {
-                    _awaitingCalls.Add(call);
+                    _safeAwaitingCalls.Add(call);
                 } 
                 CallCenterHubAppendLine("Sorry! All operators are busy. Try again later.");
             }
@@ -208,14 +225,14 @@ namespace CallCenter.Services
                 CallCenterHubAppendLine(@operator.Title + " " + @operator.Id + "" + " took a call " + call.Id);
                 @operator.Answer(call.Duration);
 
-                var callExists = _calls.Where(x => x.Id == call.Id).FirstOrDefault();
+                var callExists = _safeCalls.Where(x => x.Id == call.Id).FirstOrDefault();
                 if (callExists != null)
                 {
-                    _calls.Remove(call);
+                    ConcurrentBag.Remove(_safeCalls, callExists);
                 }
                 else
                 {
-                    _awaitingCalls.Remove(call);
+                    ConcurrentBag.Remove(_safeAwaitingCalls, callExists);
                 }
             }
         }
