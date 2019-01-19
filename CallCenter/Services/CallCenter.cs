@@ -27,8 +27,9 @@ namespace CallCenter.Services
         private bool _isPaused = false;
         private SimulationOptions _options;
         private readonly List<Operator> _operators = new List<Operator>();
-        private List<Call> _calls = new List<Call>();
-        private List<Call> _awaitingCalls = new List<Call>();
+
+        //private List<Call> _calls = new List<Call>();
+        //private List<Call> _awaitingCalls = new List<Call>();
 
         private ConcurrentBag<Call> _safeCalls = new ConcurrentBag<Call>();
         private ConcurrentBag<Call> _safeAwaitingCalls = new ConcurrentBag<Call>();
@@ -65,12 +66,12 @@ namespace CallCenter.Services
                 _operators.Add(@operator);
             }
 
-            for (var i = 0; i < _options.CallsAmount; i++)
-            {
-                var duration = _random.Next(_options.MinSecAnswer, _options.MaxSecAnswer);
-                var call = new Call { Id = callId++, Duration = duration, IsActive = true };
-                _calls.Add(call);
-            }
+            //for (var i = 0; i < _options.CallsAmount; i++)
+            //{
+            //    var duration = _random.Next(_options.MinSecAnswer, _options.MaxSecAnswer);
+            //    var call = new Call { Id = callId++, Duration = duration, IsActive = true };
+            //    _calls.Add(call);
+            //}
 
             for (var i = 0; i < _options.CallsAmount; i++)
             {
@@ -90,9 +91,10 @@ namespace CallCenter.Services
             callThread.Start();
 
             var t = Task.Run(() => ActivateCallsSending());
+            _isRunning = true;
             t.Wait();
 
-            _isRunning = true;
+            
             CallCenterHubAppendLine("Simulation started");
 
             CallCenterHubAppendLine("Operators starts answer the calls.");
@@ -168,8 +170,8 @@ namespace CallCenter.Services
 
             foreach (var thread in _operators) thread.Kill();
             _operators.Clear();
-            _calls.Clear();
-            _awaitingCalls.Clear();
+            _safeCalls.Clear();
+            _safeAwaitingCalls.Clear();
 
             CallCenterHubAppendLine("Simulation stopped");
         }
@@ -200,7 +202,7 @@ namespace CallCenter.Services
 
             Call call = null;
 
-            if (_calls.Any())
+            if (_safeCalls.Any())
             {
                 call = _safeCalls.FirstOrDefault();
                 call.IsActive = false;
