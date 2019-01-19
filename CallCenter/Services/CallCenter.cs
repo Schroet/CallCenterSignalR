@@ -69,11 +69,25 @@ namespace CallCenter.Services
                 thread.Start();
             }
 
+            var callThread = new Thread(() => ActivateCallsSending());
+            callThread.Start();
+
+            var t = Task.Run(() => ActivateCallsSending());
+            t.Wait();
+
             _isRunning = true;
             CallCenterHubAppendLine("Simulation started");
 
             CallCenterHubAppendLine("Operators starts answer the calls.");
 
+
+
+            WaitForEmployeeEndsCalls();
+            Stop();
+        }
+
+        public void ActivateCallsSending()
+        {
             while (_calls.Any() || _awaitingCalls.Any())
             {
                 Task task = null;
@@ -84,8 +98,8 @@ namespace CallCenter.Services
 
                     if (call == null)
                     {
-                        call = _awaitingCalls.Where(x=>x.IsActive == true).FirstOrDefault();
-                        if(call == null)
+                        call = _awaitingCalls.Where(x => x.IsActive == true).FirstOrDefault();
+                        if (call == null)
                         {
                             CallCenterHubAppendLine("Calls are ended");
                             _awaitingCalls.Clear();
@@ -101,9 +115,6 @@ namespace CallCenter.Services
                     }
                 }
             }
-
-            WaitForEmployeeEndsCalls();
-            Stop();
         }
 
         public void WaitForEmployeeEndsCalls()
