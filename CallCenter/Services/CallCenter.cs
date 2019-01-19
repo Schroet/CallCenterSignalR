@@ -75,21 +75,27 @@ namespace CallCenter.Services
 
         public void Restart()
         {
-            Stop();
-            Start(_options);
+            if(_isRunning != false) {
+                Stop();
+                Start(_options);
+            }
+            else
+            {
+                Start(_options);
+            }          
         }
 
         public void ActivateCallProcessing()
         {
             while (_callsToProcess.Any())
             {
-                if (!_callsToProcess.TryDequeue(out Call call)) continue; // for a call to process
+                if (!_callsToProcess.TryDequeue(out Call call)) continue;
 
                 var @operator = _operators.OrderBy(_ => _.Title).FirstOrDefault(_ => !_.IsBusy);
 
-                while (@operator == null && _isRunning == true) // looking for a free guy
+                while (@operator == null && _isRunning == true) 
                 {
-                    // all operators are busy
+                    
                     CallCenterHubAppendLine("All operators are busy");
                     Thread.Sleep(500);
                     @operator = _operators.OrderBy(_ => _.Title).FirstOrDefault(_ => !_.IsBusy);
@@ -102,7 +108,7 @@ namespace CallCenter.Services
                 }    
             }
 
-            while (_operators.Any(_ => _.IsBusy)) // waiting for all operators to process calls
+            while (_operators.Any(_ => _.IsBusy)) 
             {
                 Thread.Sleep(2000);
             }
@@ -122,7 +128,7 @@ namespace CallCenter.Services
         {
             CallCenterHubAppendLine("Simulation stopping");
 
-            //if (!_isRunning) throw new Exception("Simulation not started yet");
+            if (!_isRunning) throw new Exception("Simulation not started yet");
             _isRunning = false;
 
             foreach (var @operator in _operators) @operator.Kill();
